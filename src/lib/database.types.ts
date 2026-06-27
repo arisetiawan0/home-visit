@@ -11,6 +11,8 @@ export interface Database {
           outlet_code: string | null;
           label: string;
           is_active: boolean;
+          nik: string | null;
+          avatar_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -19,6 +21,8 @@ export interface Database {
           outlet_code?: string | null;
           label: string;
           is_active?: boolean;
+          nik?: string | null;
+          avatar_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -27,6 +31,8 @@ export interface Database {
           outlet_code?: string | null;
           label?: string;
           is_active?: boolean;
+          nik?: string | null;
+          avatar_url?: string | null;
         };
       };
       visits: {
@@ -145,6 +151,69 @@ export interface Database {
           uraian_temuan?: string;
         };
       };
+      areas: {
+        Row: {
+          id: string;
+          name: string;
+          nik: string;
+          label: string;
+          spv_code: string;
+          outlet_codes: string[];
+          divisi: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          nik: string;
+          label: string;
+          spv_code: string;
+          outlet_codes: string[];
+          divisi?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          nik?: string;
+          label?: string;
+          spv_code?: string;
+          outlet_codes?: string[];
+          divisi?: string;
+          updated_at?: string;
+        };
+      };
+      outlets_mapped: {
+        Row: {
+          code: string;
+          outlet_code: string;
+          name: string;
+          area_id: string;
+          divisi: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          code?: string;
+          outlet_code: string;
+          name: string;
+          area_id: string;
+          divisi?: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          outlet_code?: string;
+          name?: string;
+          area_id?: string;
+          divisi?: string;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
@@ -159,3 +228,9 @@ export type OutletDocumentation = Database["public"]["Tables"]["outlet_documenta
 export type OutletDocumentationUpdate = Database["public"]["Tables"]["outlet_documentation"]["Update"];
 export type OpsKendala = Database["public"]["Tables"]["ops_kendala"]["Row"];
 export type QuickLoginCode = Database["public"]["Tables"]["quick_login_codes"]["Row"];
+export type Area = Database["public"]["Tables"]["areas"]["Row"];
+export type AreaInsert = Database["public"]["Tables"]["areas"]["Insert"];
+export type AreaUpdate = Database["public"]["Tables"]["areas"]["Update"];
+export type OutletMapped = Database["public"]["Tables"]["outlets_mapped"]["Row"];
+export type OutletMappedInsert = Database["public"]["Tables"]["outlets_mapped"]["Insert"];
+export type OutletMappedUpdate = Database["public"]["Tables"]["outlets_mapped"]["Update"];

@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS ops_kendala;
 DROP TABLE IF EXISTS outlet_documentation;
 DROP TABLE IF EXISTS checklist_items;
 DROP TABLE IF EXISTS visits;
+DROP TABLE IF EXISTS outlets_mapped;
+DROP TABLE IF EXISTS areas;
 DROP TABLE IF EXISTS quick_login_codes;
 
 -- 1. Tables
@@ -18,6 +20,7 @@ CREATE TABLE quick_login_codes (
   outlet_code VARCHAR(3),
   label VARCHAR(100) NOT NULL,
   is_active BOOLEAN DEFAULT true,
+  nik VARCHAR(20) NULL COMMENT 'NIK sebenarnya untuk SPV',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -32,6 +35,34 @@ CREATE TABLE visits (
   status ENUM('draft', 'completed') DEFAULT 'draft',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Areas (Area SPV)
+CREATE TABLE areas (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  nik VARCHAR(20) NOT NULL,
+  label VARCHAR(100) NOT NULL,
+  spv_code VARCHAR(20) NOT NULL,
+  outlet_codes JSON NOT NULL,
+  divisi VARCHAR(50) DEFAULT 'OPS',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_area_nik (nik),
+  UNIQUE KEY unique_area_spv_code (spv_code)
+);
+
+-- Outlets mapped to SPV areas
+CREATE TABLE outlets_mapped (
+  code VARCHAR(3) PRIMARY KEY,
+  outlet_code VARCHAR(10) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  area_id VARCHAR(36) NOT NULL,
+  divisi VARCHAR(50) DEFAULT 'OPS',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (area_id) REFERENCES areas(id) ON DELETE CASCADE
 );
 
 -- Checklist Items (Item Checklist)
@@ -74,6 +105,9 @@ CREATE TABLE ops_kendala (
 CREATE INDEX idx_visits_outlet_code ON visits(outlet_code);
 CREATE INDEX idx_visits_status ON visits(status);
 CREATE INDEX idx_visits_visit_date ON visits(visit_date);
+CREATE INDEX idx_areas_spv_code ON areas(spv_code);
+CREATE INDEX idx_outlets_mapped_area_id ON outlets_mapped(area_id);
+CREATE INDEX idx_outlets_mapped_outlet_code ON outlets_mapped(outlet_code);
 CREATE INDEX idx_checklist_items_visit_id ON checklist_items(visit_id);
 CREATE INDEX idx_checklist_items_perspective ON checklist_items(perspective_no);
 CREATE INDEX idx_outlet_documentation_item ON outlet_documentation(checklist_item_id);

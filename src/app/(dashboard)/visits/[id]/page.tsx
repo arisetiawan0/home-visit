@@ -44,6 +44,11 @@ export default function VisitChecklistPage() {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [addP5Loading, setAddP5Loading] = useState(false);
+  const [saveOpsLoading, setSaveOpsLoading] = useState(false);
+  const [removingP5Item, setRemovingP5Item] = useState<string | null>(null);
+  const [updatingChecklistKey, setUpdatingChecklistKey] = useState<string | null>(null);
   
   // Ops Modal state
   const [opsModalOpen, setOpsModalOpen] = useState(false);
@@ -155,29 +160,42 @@ export default function VisitChecklistPage() {
 
   const handleAddP5 = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!p5InputText.trim()) return;
-    const newItem = await apiAddPerspective5Item(visit.id, p5InputText.trim());
-    if (newItem) {
-      setChecklistItems(prev => [...prev, newItem]);
-      showToast("Temuan baru berhasil ditambahkan!");
+    if (!p5InputText.trim() || addP5Loading) return;
+
+    setAddP5Loading(true);
+    try {
+      const newItem = await apiAddPerspective5Item(visit.id, p5InputText.trim());
+      if (newItem) {
+        setChecklistItems(prev => [...prev, newItem]);
+        showToast("Temuan baru berhasil ditambahkan!");
+      }
+      setP5InputText("");
+    } finally {
+      setAddP5Loading(false);
     }
-    setP5InputText("");
   };
 
   const handleSaveOpsModal = async () => {
-    await apiUpdateOpsKendala(visit.id, "produk", tempOpsProduk);
-    await apiUpdateOpsKendala(visit.id, "fasilitas", tempOpsFasilitas);
-    await apiUpdateOpsKendala(visit.id, "sdm", tempOpsSdm);
-    // Re-fetch items & ops kendala to get updated state
-    const items = await apiGetChecklistItems(visit.id);
-    setChecklistItems(items);
-    const res = await fetch(`/api/ops-kendala?visit_id=${visit.id}`);
-    if (res.ok) {
-      const data = await res.json();
-      setOpsKendalas(data.kendalas || []);
+    if (saveOpsLoading) return;
+
+    setSaveOpsLoading(true);
+    try {
+      await apiUpdateOpsKendala(visit.id, "produk", tempOpsProduk);
+      await apiUpdateOpsKendala(visit.id, "fasilitas", tempOpsFasilitas);
+      await apiUpdateOpsKendala(visit.id, "sdm", tempOpsSdm);
+      // Re-fetch items & ops kendala to get updated state
+      const items = await apiGetChecklistItems(visit.id);
+      setChecklistItems(items);
+      const res = await fetch(`/api/ops-kendala?visit_id=${visit.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOpsKendalas(data.kendalas || []);
+      }
+      showToast("Kendala OPS berhasil disimpan!");
+      setOpsModalOpen(false);
+    } finally {
+      setSaveOpsLoading(false);
     }
-    showToast("Kendala OPS berhasil disimpan!");
-    setOpsModalOpen(false);
   };
 
   const handleSaveDraft = () => {
@@ -185,6 +203,8 @@ export default function VisitChecklistPage() {
   };
 
   const handleSubmitVisit = async () => {
+    if (submitLoading) return;
+
     setValidationErrors([]);
     const errors: string[] = [];
 
@@ -207,8 +227,14 @@ export default function VisitChecklistPage() {
     }
 
     // Submit report
-    await apiSubmitVisit(visit.id);
-    router.push(`/visits/${visit.id}/summary`);
+    setSubmitLoading(true);
+    try {
+      await apiSubmitVisit(visit.id);
+      router.push(`/visits/${visit.id}/summary`);
+    } catch (err) {
+      console.error("Failed to submit visit:", err);
+      setSubmitLoading(false);
+    }
   };
 
   const currentTabItems = getTabItems(activeTab);
@@ -245,10 +271,15 @@ export default function VisitChecklistPage() {
             </button>
             <button
               onClick={handleSubmitVisit}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer"
+              disabled={submitLoading}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <IconSend className="w-4 h-4" />
-              Selesai & Submit
+              {submitLoading ? (
+                <div className="w-4 h-4 border-2 border-[#022c22] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <IconSend className="w-4 h-4" />
+              )}
+              {submitLoading ? "Memproses..." : "Selesai & Submit"}
             </button>
           </div>
         )}
@@ -317,10 +348,15 @@ export default function VisitChecklistPage() {
               />
               <button
                 type="submit"
-                className="flex items-center justify-center gap-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl cursor-pointer"
+                disabled={addP5Loading || !p5InputText.trim()}
+                className="flex items-center justify-center gap-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <IconPlus className="w-4 h-4" />
-                Tambah Temuan
+                {addP5Loading ? (
+                  <div className="w-4 h-4 border-2 border-[#022c22] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IconPlus className="w-4 h-4" />
+                )}
+                {addP5Loading ? "Menambahkan..." : "Tambah Temuan"}
               </button>
             </form>
           </div>
@@ -374,14 +410,26 @@ export default function VisitChecklistPage() {
                         </span>
                         {activeTab === 5 && !isCompleted && (
                           <button
+                            disabled={removingP5Item === item.id}
                             onClick={async () => {
-                              await apiRemovePerspective5Item(item.id);
-                              setChecklistItems(prev => prev.filter(i => i.id !== item.id));
-                              showToast("Temuan berhasil dihapus!");
+                              if (removingP5Item) return;
+
+                              setRemovingP5Item(item.id);
+                              try {
+                                await apiRemovePerspective5Item(item.id);
+                                setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                showToast("Temuan berhasil dihapus!");
+                              } finally {
+                                setRemovingP5Item(null);
+                              }
                             }}
-                            className="p-1 text-muted hover:text-rose-400 hover:bg-card-hover rounded transition-colors cursor-pointer"
+                            className="p-1 text-muted hover:text-rose-400 hover:bg-card-hover rounded transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            <IconTrash className="w-3.5 h-3.5" />
+                            {removingP5Item === item.id ? (
+                              <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <IconTrash className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         )}
                       </div>
@@ -406,18 +454,27 @@ export default function VisitChecklistPage() {
                         ].map((btn) => {
                           const Icon = btn.icon;
                           const isSelected = item.hasil_temuan === btn.val;
+                          const loadingKey = `${item.id}:${btn.val}`;
+                          const isUpdating = updatingChecklistKey === loadingKey;
                           return (
                             <button
                               key={btn.val}
                               type="button"
-                              disabled={isCompleted}
+                              disabled={isCompleted || updatingChecklistKey !== null}
                               onClick={async () => {
-                                const updated = await apiUpdateChecklistItem(item.id, {
-                                  hasil_temuan: btn.val as "V" | "X",
-                                });
-                                if (updated) {
-                                  setChecklistItems(prev => prev.map(i => i.id === item.id ? updated : i));
-                                  showToast(`Butir ${item.point_no}: ${btn.label}`);
+                                if (updatingChecklistKey) return;
+
+                                setUpdatingChecklistKey(loadingKey);
+                                try {
+                                  const updated = await apiUpdateChecklistItem(item.id, {
+                                    hasil_temuan: btn.val as "V" | "X",
+                                  });
+                                  if (updated) {
+                                    setChecklistItems(prev => prev.map(i => i.id === item.id ? updated : i));
+                                    showToast(`Butir ${item.point_no}: ${btn.label}`);
+                                  }
+                                } finally {
+                                  setUpdatingChecklistKey(null);
                                 }
                               }}
                               className={`flex items-center justify-center w-9 h-9 rounded-lg border transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -425,7 +482,11 @@ export default function VisitChecklistPage() {
                               }`}
                               title={btn.label}
                             >
-                              {Icon && <Icon className="w-4.5 h-4.5" />}
+                              {isUpdating ? (
+                                <div className="w-4.5 h-4.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                Icon && <Icon className="w-4.5 h-4.5" />
+                              )}
                             </button>
                           );
                         })}
@@ -519,10 +580,15 @@ export default function VisitChecklistPage() {
               <button
                 type="button"
                 onClick={handleSubmitVisit}
-                className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer"
+                disabled={submitLoading}
+                className="flex items-center gap-1.5 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <IconSend className="w-4 h-4" />
-                Selesai & Submit
+                {submitLoading ? (
+                  <div className="w-4 h-4 border-2 border-[#022c22] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <IconSend className="w-4 h-4" />
+                )}
+                {submitLoading ? "Memproses..." : "Selesai & Submit"}
               </button>
             )
           )}
@@ -604,15 +670,20 @@ export default function VisitChecklistPage() {
               <div className="px-6 py-4.5 bg-card-darker/40 border-t border-card-border flex items-center justify-end gap-3">
                 <button
                   onClick={() => setOpsModalOpen(false)}
-                  className="px-4 py-2 border border-card-border hover:bg-card-hover text-secondary font-semibold text-xs rounded-xl cursor-pointer"
+                  disabled={saveOpsLoading}
+                  className="px-4 py-2 border border-card-border hover:bg-card-hover text-secondary font-semibold text-xs rounded-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSaveOpsModal}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl cursor-pointer"
+                  disabled={saveOpsLoading}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Simpan Temuan
+                  {saveOpsLoading && (
+                    <div className="w-4 h-4 border-2 border-[#022c22] border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {saveOpsLoading ? "Menyimpan..." : "Simpan Temuan"}
                 </button>
               </div>
             </motion.div>

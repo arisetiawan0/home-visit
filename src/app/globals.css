@@ -47,9 +47,15 @@ body {
 
 /* Custom print stylesheet to make PDF generation pristine */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
   body {
     background: white !important;
     color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .no-print {
     display: none !important;
@@ -62,6 +68,16 @@ body {
   }
   .print-title {
     color: black !important;
+  }
+  table {
+    table-layout: fixed !important;
+  }
+  th, td {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  tr {
+    break-inside: avoid !important;
   }
 }
 

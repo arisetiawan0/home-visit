@@ -15,10 +15,15 @@ export default function NewVisitPage() {
   const [visitDate, setVisitDate] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const outletOptions = Array.from({ length: 26 }, (_, i) => {
-    const num = String(i + 1).padStart(2, "0");
-    return { value: num, label: `Beauty ${num}` };
-  });
+  const outletOptions = currentUser?.outlets?.length
+    ? currentUser.outlets.map((outlet) => ({
+        value: outlet.code,
+        label: `${outlet.outletCode} - ${outlet.name}`,
+      }))
+    : Array.from({ length: 27 }, (_, i) => {
+        const num = String(i + 1).padStart(2, "0");
+        return { value: num, label: `Beauty ${num}` };
+      });
 
   // Set default date to today in YYYY-MM-DD
   useEffect(() => {
@@ -26,6 +31,12 @@ export default function NewVisitPage() {
     const today = new Date().toISOString().substring(0, 10);
     setVisitDate(today);
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.outlets?.length) {
+      setSelectedOutlet(currentUser.outlets[0].code);
+    }
+  }, [currentUser]);
 
   if (!mounted || !currentUser) {
     return (
@@ -77,7 +88,7 @@ export default function NewVisitPage() {
           Buat Kunjungan Baru
         </h1>
         <p className="text-muted text-sm mt-1">
-          Pilih lokasi outlet dan tanggal untuk memulai pengisian checklist penilaian.
+          Pilih outlet sesuai area dan tanggal untuk memulai pengisian checklist penilaian.
         </p>
       </div>
 
@@ -137,6 +148,22 @@ export default function NewVisitPage() {
             </div>
             <div className="flex justify-between">
               <span>Petugas SPV:</span>
+              <span className="font-semibold text-foreground">{currentUser.label}</span>
+            </div>
+            {currentUser.areaLabel && (
+              <div className="flex justify-between">
+                <span>Area:</span>
+                <span className="font-semibold text-foreground">{currentUser.areaLabel}</span>
+              </div>
+            )}
+            {currentUser.nik && (
+              <div className="flex justify-between">
+                <span>NIK:</span>
+                <span className="font-mono text-foreground font-semibold">{currentUser.nik}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>Kode SPV:</span>
               <span className="font-mono text-foreground font-semibold">{currentUser.code}</span>
             </div>
           </div>

@@ -2,28 +2,38 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { apiGetVisits, apiGetChecklistItems, apiGetOutletDocumentations, Visit, ChecklistItem, OutletDocumentation } from "@/lib/mockStore";
+import {
+  apiGetAreaStats,
+  apiGetVisits,
+  apiGetChecklistItems,
+  apiGetOutletDocumentations,
+  useAppStore,
+  AreaStats,
+  Visit,
+  ChecklistItem,
+  OutletDocumentation,
+} from "@/lib/mockStore";
 import { motion } from "framer-motion";
 import {
-  IconBuildingStore,
   IconCalendar,
   IconFilter,
   IconPlus,
   IconClipboardText,
   IconFileExport,
-  IconCheck,
-  IconX,
   IconAlertCircle,
-  IconChartBar
+  IconChartBar,
+  IconTargetArrow,
 } from "@tabler/icons-react";
 import CustomSelect from "@/components/CustomSelect";
 
 export default function SpvDashboardPage() {
   const router = useRouter();
+  const { currentUser } = useAppStore();
   const [mounted, setMounted] = useState(false);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [outletDocumentations, setOutletDocumentations] = useState<OutletDocumentation[]>([]);
+  const [areaStats, setAreaStats] = useState<AreaStats | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   
   // Filter States
@@ -42,8 +52,13 @@ export default function SpvDashboardPage() {
     const fetchData = async () => {
       setDataLoading(true);
       try {
-        const visitsData = await apiGetVisits();
+        const visitsData = await apiGetVisits({
+          outlet_codes: currentUser?.outletCodes?.length ? currentUser.outletCodes : undefined,
+        });
         setVisits(visitsData);
+        if (currentUser?.areaId) {
+          setAreaStats(await apiGetAreaStats(currentUser.areaId));
+        }
         
         // Fetch checklist items and docs for all visits
         const allItems: ChecklistItem[] = [];
@@ -67,7 +82,7 @@ export default function SpvDashboardPage() {
       }
     };
     fetchData();
-  }, [mounted]);
+  }, [mounted, currentUser]);
 
   if (!mounted || dataLoading) {
     return (
@@ -80,6 +95,8 @@ export default function SpvDashboardPage() {
 
   // --- STATS COMPUTATION ---
   const totalVisits = visits.length;
+  const targetVisits = areaStats?.outletCount ?? currentUser?.outlets?.length ?? 0;
+  const visitCoverage = targetVisits > 0 ? Math.round((totalVisits / targetVisits) * 100) : 0;
   
   // Total checklist items marked as X (temuan) across completed visits
   const completedVisitIds = visits.filter(v => v.status === "completed").map(v => v.id);
@@ -142,6 +159,29 @@ export default function SpvDashboardPage() {
     return true;
   });
 
+  // --- FILTERED STATS (for per-outlet KPI cards) ---
+  const filteredTotalVisits = filteredVisits.length;
+  const filteredCompletedVisitIds = filteredVisits
+    .filter((v) => v.status === "completed")
+    .map((v) => v.id);
+  const filteredTotalFindings = checklistItems.filter(
+    (item) => filteredCompletedVisitIds.includes(item.visit_id) && item.hasil_temuan === "X"
+  ).length;
+  const filteredResolvedFindings = outletDocumentations.filter(
+    (doc) =>
+      checklistItems.some(
+        (item) =>
+          item.id === doc.checklist_item_id &&
+          filteredCompletedVisitIds.includes(item.visit_id) &&
+          item.hasil_temuan === "X"
+      ) && doc.status === "selesai"
+  ).length;
+  const filteredOpenFindings = filteredTotalFindings - filteredResolvedFindings;
+  const filteredResolutionRate =
+    filteredTotalFindings > 0
+      ? Math.round((filteredResolvedFindings / filteredTotalFindings) * 100)
+      : 100;
+
   // Unique months helper for filter dropdown
   const uniqueMonths = Array.from(
     new Set(visits.map((v) => v.visit_date.substring(0, 7)))
@@ -149,11 +189,16 @@ export default function SpvDashboardPage() {
 
   // Custom Select Options
   const outletOptions = [
-    { value: "", label: "Semua Outlet" },
-    ...Array.from({ length: 26 }, (_, i) => {
-      const code = String(i + 1).padStart(2, "0");
-      return { value: code, label: `Beauty ${code}` };
-    }),
+    { value: "", label: currentUser?.areaLabel ? `Semua Outlet ${currentUser.areaLabel}` : "Semua Outlet" },
+    ...(currentUser?.outlets?.length
+      ? currentUser.outlets.map((outlet) => ({
+          value: outlet.code,
+          label: `${outlet.outletCode} - ${outlet.name}`,
+        }))
+      : Array.from({ length: 27 }, (_, i) => {
+          const code = String(i + 1).padStart(2, "0");
+          return { value: code, label: `Beauty ${code}` };
+        })),
   ];
 
   const monthOptions = [
@@ -177,38 +222,97 @@ export default function SpvDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {currentUser?.areaLabel && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden bg-card border border-card-border rounded-2xl p-5"
+        >
+          <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-emerald-500/10 to-transparent pointer-events-none" />
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                {currentUser.areaLabel}
+              </p>
+              <h1 className="text-2xl font-extrabold text-foreground tracking-tight mt-1">
+                {currentUser.areaName || currentUser.label}
+              </h1>
+              <p className="text-sm text-muted mt-1">
+                NIK {currentUser.nik} mengelola {targetVisits} outlet dalam area ini.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 min-w-64">
+              <div className="rounded-xl border border-card-border bg-card-darker/40 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Target Bulanan</p>
+                <p className="text-3xl font-extrabold text-foreground mt-2">{targetVisits}</p>
+              </div>
+              <div className="rounded-xl border border-card-border bg-card-darker/40 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Cakupan</p>
+                <p className="text-3xl font-extrabold text-emerald-400 mt-2">{visitCoverage}%</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* 1. TOP CARDS: DASHBOARD KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {[
-          {
-            title: "Total Kunjungan",
-            value: totalVisits,
-            desc: "Semua outlet",
-            icon: IconClipboardText,
-            color: "text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
-          },
-          {
-            title: "Temuan Terbuka",
-            value: openFindings,
-            desc: "Menunggu tindakan outlet",
-            icon: IconAlertCircle,
-            color: "text-rose-400 bg-rose-500/5 border-rose-500/10",
-          },
-          {
-            title: "Temuan Diselesaikan",
-            value: resolvedFindings,
-            desc: "Telah diverifikasi",
-            icon: IconCheck,
-            color: "text-cyan-400 bg-cyan-500/5 border-cyan-500/10",
-          },
-          {
-            title: "Tingkat Penyelesaian",
-            value: `${resolutionRate}%`,
-            desc: "Rasio perbaikan selesai",
-            icon: IconChartBar,
-            color: "text-amber-400 bg-amber-500/5 border-amber-500/10",
-          },
-        ].map((card, i) => {
+      <div className={`grid gap-5 ${selectedOutlet ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"}`}>
+        {(
+          selectedOutlet
+            ? [
+                {
+                  title: "Total Kunjungan",
+                  value: filteredTotalVisits,
+                  desc: `Kunjungan ke outlet terpilih`,
+                  icon: IconClipboardText,
+                  color: "text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
+                },
+                {
+                  title: "Jumlah Temuan",
+                  value: filteredTotalFindings,
+                  desc: "Total temuan tercatat",
+                  icon: IconAlertCircle,
+                  color: "text-rose-400 bg-rose-500/5 border-rose-500/10",
+                },
+                {
+                  title: "Temuan Selesai",
+                  value: filteredResolvedFindings,
+                  desc: "Temuan sudah ditindaklanjuti",
+                  icon: IconChartBar,
+                  color: "text-violet-400 bg-violet-500/5 border-violet-500/10",
+                },
+                {
+                  title: "Persentase",
+                  value: `${filteredResolutionRate}%`,
+                  desc: "Rasio penyelesaian temuan",
+                  icon: IconTargetArrow,
+                  color: "text-amber-400 bg-amber-500/5 border-amber-500/10",
+                },
+              ]
+            : [
+                {
+                  title: "Total Kunjungan",
+                  value: totalVisits,
+                  desc: currentUser?.areaLabel ? `Dalam ${currentUser.areaLabel}` : "Semua outlet",
+                  icon: IconClipboardText,
+                  color: "text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
+                },
+                {
+                  title: "Target Kunjungan",
+                  value: targetVisits,
+                  desc: "Target outlet per bulan",
+                  icon: IconTargetArrow,
+                  color: "text-violet-400 bg-violet-500/5 border-violet-500/10",
+                },
+                {
+                  title: "Cakupan",
+                  value: `${visitCoverage}%`,
+                  desc: "Persentase target tercapai",
+                  icon: IconChartBar,
+                  color: "text-emerald-400 bg-emerald-500/5 border-emerald-500/10",
+                },
+              ]
+        ).map((card, i) => {
           const Icon = card.icon;
           return (
             <motion.div
@@ -216,18 +320,18 @@ export default function SpvDashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.05 }}
               key={card.title}
-              className={`bg-card border border-card-border rounded-2xl p-5 flex items-center justify-between ${card.color.split(" ")[2]}`}
+              className={`group bg-card border border-card-border rounded-2xl p-5 flex items-center justify-between gap-4 h-full hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 ${card.color.split(" ")[2]}`}
             >
-              <div>
-                <p className="text-muted text-xs font-semibold uppercase tracking-wider">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
                   {card.title}
                 </p>
-                <h3 className="text-3xl font-extrabold text-foreground tracking-tight mt-1">
+                <h3 className="text-4xl font-extrabold text-foreground tracking-tight mt-2">
                   {card.value}
                 </h3>
-                <p className="text-muted text-xs mt-1.5">{card.desc}</p>
+                <p className="text-xs text-muted mt-2">{card.desc}</p>
               </div>
-              <div className={`p-3 rounded-xl border ${card.color.split(" ").slice(0, 2).join(" ")}`}>
+              <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border ${card.color.split(" ").slice(0, 2).join(" ")}`}>
                 <Icon className="w-6 h-6" />
               </div>
             </motion.div>

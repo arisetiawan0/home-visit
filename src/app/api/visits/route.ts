@@ -56,6 +56,19 @@ export async function GET(request: NextRequest) {
       params.push(outletCode);
     }
 
+    const outletCodes = searchParams.get("outlet_codes");
+    if (outletCodes) {
+      const codes = outletCodes
+        .split(",")
+        .map((code) => code.trim())
+        .filter(Boolean);
+
+      if (codes.length > 0) {
+        sql += ` AND outlet_code IN (${codes.map(() => "?").join(",")})`;
+        params.push(...codes);
+      }
+    }
+
     // Filter by status
     const status = searchParams.get("status");
     if (status && (status === "draft" || status === "completed")) {
@@ -102,13 +115,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const outletName = `Beauty ${outlet_code}`;
+    const mappedOutlets = await query(
+      "SELECT name FROM outlets_mapped WHERE code = ? AND is_active = 1 LIMIT 1",
+      [outlet_code]
+    );
+    const outletName = mappedOutlets?.[0]?.name || `Beauty ${outlet_code}`;
     visitId = crypto.randomUUID();
 
     // Create visit
     await query(
       "INSERT INTO visits (id, outlet_code, outlet_name, visit_date, spv_code, divisi, status) VALUES (?, ?, ?, ?, ?, 'OPS', 'draft')",
-      [visitId, outlet_code, outletName, visit_date, spv_code || "SPV2024"]
+      [visitId, outlet_code, outletName, visit_date, spv_code || "SPV001"]
     );
 
     // Retrieve the created visit

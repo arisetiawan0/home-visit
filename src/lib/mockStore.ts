@@ -48,6 +48,46 @@ export interface UserSession {
   code: string;
   outletCode?: string;
   label: string;
+  avatar_url?: string | null;
+  nik?: string;
+  areaId?: string;
+  areaName?: string;
+  areaLabel?: string;
+  areaOutletCodes?: string[];
+  outletCodes?: string[];
+  outlets?: {
+    code: string;
+    outletCode: string;
+    name: string;
+  }[];
+}
+
+export interface AreaInfo {
+  id: string;
+  name: string;
+  label: string;
+  spv_code: string;
+  outlet_codes: string[];
+}
+
+export interface AreaStats {
+  area: {
+    id: string;
+    name: string;
+    label: string;
+    spv_code: string;
+  };
+  totalVisits: number;
+  completedVisits: number;
+  completionRate: number;
+  outletCount: number;
+  visitedOutletCount: number;
+  statsPerOutlet: {
+    outlet_code: string;
+    name: string;
+    total: number;
+    completed: number;
+  }[];
 }
 
 // --- APP STORE (UI state only) ---
@@ -105,13 +145,33 @@ export async function apiLogin(
   }
 }
 
+export async function apiUpdateProfileAvatar(
+  code: string,
+  avatarUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/auth/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, avatar_url: avatarUrl }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch {
+    return { success: false, error: "Koneksi gagal" };
+  }
+}
+
 export async function apiGetVisits(params?: {
   outlet_code?: string;
+  outlet_codes?: string[];
   status?: string;
   month?: string;
 }): Promise<Visit[]> {
   const searchParams = new URLSearchParams();
   if (params?.outlet_code) searchParams.set("outlet_code", params.outlet_code);
+  if (params?.outlet_codes?.length) searchParams.set("outlet_codes", params.outlet_codes.join(","));
   if (params?.status) searchParams.set("status", params.status);
   if (params?.month) searchParams.set("month", params.month);
 
@@ -240,6 +300,29 @@ export async function apiUploadPhoto(
   const data = await res.json();
   if (!res.ok) return { error: data.error };
   return { url: data.url };
+}
+
+// Area & Outlet API helpers
+export async function apiGetAreaBySpvCode(spvCode: string): Promise<AreaInfo | null> {
+  try {
+    const res = await fetch(`/api/areas/spv/${spvCode}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.area || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function apiGetAreaStats(areaId: string): Promise<AreaStats | null> {
+  try {
+    const res = await fetch(`/api/areas/${areaId}/stats`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.stats || null;
+  } catch {
+    return null;
+  }
 }
 
 // Master data constant (for reference in pages)

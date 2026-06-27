@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const outletOptions = Array.from({ length: 26 }, (_, i) => {
+  const outletOptions = Array.from({ length: 27 }, (_, i) => {
     const num = String(i + 1).padStart(2, "0");
     return { value: num, label: `Beauty ${num}` };
   });
@@ -77,7 +77,7 @@ export default function LoginPage() {
       setError(
         result.error ||
           (role === "spv"
-            ? "Kode SPV tidak valid (contoh: SPV2024 atau SPV2026)"
+            ? "NIK / Kode SPV tidak valid"
             : "Nomor outlet tidak valid")
       );
     }
@@ -178,14 +178,14 @@ export default function LoginPage() {
                   htmlFor="spvCode"
                   className="block text-xs font-semibold text-muted uppercase tracking-wider"
                 >
-                  Masukkan Kode SPV
+                  Masukkan NIK / Kode SPV
                 </label>
                 <input
                   id="spvCode"
                   type="password"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Contoh: SPV2024"
+                  placeholder="Masukkan NIK (contoh: 20120100051)"
                   className="w-full bg-card-darker border border-card-border focus:border-emerald-500 rounded-xl px-4 py-3 text-secondary text-sm placeholder-muted focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all duration-200"
                   autoComplete="off"
                 />
@@ -239,11 +239,19 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Demo info note */}
+        {/* Info kode login */}
         <div className="mt-6 text-center text-xs text-muted bg-card/40 border border-card-border rounded-xl p-3">
-          <span className="font-semibold text-muted">Info Kode Uji Coba:</span>
+          <span className="font-semibold text-muted">Info Login SPV:</span>
           <br />
-          SPV: <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">SPV2024</code> / <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">SPV2026</code>
+          <span className="text-secondary">Gunakan NIK untuk login:</span>
+          <br />
+          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Toni Irawan (20120100051)</code>
+          <br />
+          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Zulkifli (2022070361)</code>
+          <br />
+          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Choirul Amin Nurfauzi (2021120331)</code>
+          <br className="mt-2" />
+          <span className="text-muted">Atau gunakan kode: SPV001 / SPV002 / SPV003</span>
           {" | "}
           Outlet: Pilih nomor, misal <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">05</code>
         </div>

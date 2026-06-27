@@ -4,12 +4,48 @@
 
 -- 1. QUICK LOGIN CODES
 
--- SPV Codes
-INSERT INTO quick_login_codes (code, role, outlet_code, label) VALUES
-  ('SPV2024', 'spv', NULL, 'SPV 2024'),
-  ('SPV2026', 'spv', NULL, 'SPV 2026');
+-- SPV Codes - ACTUAL SPVs with NIK from data-area-spv.md
+INSERT INTO quick_login_codes (code, role, outlet_code, label, nik) VALUES
+  ('SPV001', 'spv', NULL, 'Toni Irawan', '20120100051'),
+  ('SPV002', 'spv', NULL, 'Zulkifli', '2022070361'),
+  ('SPV003', 'spv', NULL, 'Choirul Amin Nurfauzi', '2021120331');
 
--- Outlet Codes (Beauty 01–26)
+-- Areas & Outlet Mapping based on data-area-spv.md
+INSERT INTO areas (id, name, nik, label, spv_code, outlet_codes) VALUES
+  ('area-001', 'Toni Irawan', '20120100051', 'Area 1', 'SPV001', '["B2","B7","B8","B12","B14","B18","B21","B23","B25","B24"]'),
+  ('area-002', 'Zulkifli', '2022070361', 'Area 2', 'SPV002', '["B1","B3","B9","B10","B15","B17","B20","B22","B26"]'),
+  ('area-003', 'Choirul Amin Nurfauzi', '2021120331', 'Area 3', 'SPV003', '["B4","B5","B6","B11","B13","B16","B19","B27"]');
+
+INSERT INTO outlets_mapped (code, outlet_code, name, area_id) VALUES
+  ('02', 'B2', 'Beauty B2', 'area-001'),
+  ('07', 'B7', 'Beauty B7', 'area-001'),
+  ('08', 'B8', 'Beauty B8', 'area-001'),
+  ('12', 'B12', 'Beauty B12', 'area-001'),
+  ('14', 'B14', 'Beauty B14', 'area-001'),
+  ('18', 'B18', 'Beauty B18', 'area-001'),
+  ('21', 'B21', 'Beauty B21', 'area-001'),
+  ('23', 'B23', 'Beauty B23', 'area-001'),
+  ('25', 'B25', 'Beauty B25', 'area-001'),
+  ('24', 'B24', 'Beauty B24', 'area-001'),
+  ('01', 'B1', 'Beauty B1', 'area-002'),
+  ('03', 'B3', 'Beauty B3', 'area-002'),
+  ('09', 'B9', 'Beauty B9', 'area-002'),
+  ('10', 'B10', 'Beauty B10', 'area-002'),
+  ('15', 'B15', 'Beauty B15', 'area-002'),
+  ('17', 'B17', 'Beauty B17', 'area-002'),
+  ('20', 'B20', 'Beauty B20', 'area-002'),
+  ('22', 'B22', 'Beauty B22', 'area-002'),
+  ('26', 'B26', 'Beauty B26', 'area-002'),
+  ('04', 'B4', 'Beauty B4', 'area-003'),
+  ('05', 'B5', 'Beauty B5', 'area-003'),
+  ('06', 'B6', 'Beauty B6', 'area-003'),
+  ('11', 'B11', 'Beauty B11', 'area-003'),
+  ('13', 'B13', 'Beauty B13', 'area-003'),
+  ('16', 'B16', 'Beauty B16', 'area-003'),
+  ('19', 'B19', 'Beauty B19', 'area-003'),
+  ('27', 'B27', 'Beauty B27', 'area-003');
+
+-- Outlet Codes (Beauty 01–27)
 INSERT INTO quick_login_codes (code, role, outlet_code, label) VALUES
   ('01', 'outlet', '01', 'Beauty 01'),
   ('02', 'outlet', '02', 'Beauty 02'),
@@ -36,13 +72,14 @@ INSERT INTO quick_login_codes (code, role, outlet_code, label) VALUES
   ('23', 'outlet', '23', 'Beauty 23'),
   ('24', 'outlet', '24', 'Beauty 24'),
   ('25', 'outlet', '25', 'Beauty 25'),
-  ('26', 'outlet', '26', 'Beauty 26');
+  ('26', 'outlet', '26', 'Beauty 26'),
+  ('27', 'outlet', '27', 'Beauty 27');
 
 -- 2. SAMPLE VISITS
 INSERT INTO visits (id, outlet_code, outlet_name, visit_date, spv_code, divisi, status, created_at, updated_at) VALUES
-  ('00000000-0000-0000-0000-000000000001', '01', 'Beauty 01', '2026-06-10', 'SPV2024', 'OPS', 'completed', '2026-06-10 08:00:00', '2026-06-10 12:00:00'),
-  ('00000000-0000-0000-0000-000000000002', '05', 'Beauty 05', '2026-06-24', 'SPV2024', 'OPS', 'completed', '2026-06-24 09:00:00', '2026-06-24 11:30:00'),
-  ('00000000-0000-0000-0000-000000000003', '12', 'Beauty 12', '2026-06-25', 'SPV2026', 'OPS', 'draft', '2026-06-25 03:00:00', '2026-06-25 03:00:00');
+  ('00000000-0000-0000-0000-000000000001', '01', 'Beauty 01', '2026-06-10', 'SPV002', 'OPS', 'completed', '2026-06-10 08:00:00', '2026-06-10 12:00:00'),
+  ('00000000-0000-0000-0000-000000000002', '05', 'Beauty 05', '2026-06-24', 'SPV003', 'OPS', 'completed', '2026-06-24 09:00:00', '2026-06-24 11:30:00'),
+  ('00000000-0000-0000-0000-000000000003', '12', 'Beauty 12', '2026-06-25', 'SPV001', 'OPS', 'draft', '2026-06-25 03:00:00', '2026-06-25 03:00:00');
 
 -- 3. MASTER CHECKLIST DATA (Temporary table helper)
 CREATE TEMPORARY TABLE _master_checklist (

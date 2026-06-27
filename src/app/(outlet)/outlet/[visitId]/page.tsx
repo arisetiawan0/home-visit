@@ -26,6 +26,8 @@ export default function OutletVisitDetailsPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [itemSuccessMsg, setItemSuccessMsg] = useState<Record<string, boolean>>({});
   const [uploadingItem, setUploadingItem] = useState<string | null>(null);
+  const [submittingItem, setSubmittingItem] = useState<string | null>(null);
+  const [saveAllLoading, setSaveAllLoading] = useState(false);
 
   // Local state to manage form fields per item
   const [formStates, setFormStates] = useState<
@@ -95,7 +97,7 @@ export default function OutletVisitDetailsPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, itemId: string) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploadingItem) return;
 
     const currentPhotos = formStates[itemId]?.fotoUrls || [];
     if (currentPhotos.length >= 3) {
@@ -108,29 +110,31 @@ export default function OutletVisitDetailsPage() {
 
     setUploadingItem(itemId);
 
-    for (const file of filesToUpload) {
-      const result = await apiUploadPhoto(file, `visit-${visit.id}`);
-      if (result.url) {
-        setFormStates((prev) => {
-          const itemPhotos = prev[itemId]?.fotoUrls || [];
-          if (itemPhotos.length >= 3) return prev;
-          return {
-            ...prev,
-            [itemId]: {
-              ...prev[itemId],
-              fotoUrls: [...itemPhotos, result.url!],
-              status: "selesai",
-            },
-          };
-        });
-      } else {
-        alert(result.error || "Gagal mengupload foto");
+    try {
+      for (const file of filesToUpload) {
+        const result = await apiUploadPhoto(file, `visit-${visit.id}`);
+        if (result.url) {
+          setFormStates((prev) => {
+            const itemPhotos = prev[itemId]?.fotoUrls || [];
+            if (itemPhotos.length >= 3) return prev;
+            return {
+              ...prev,
+              [itemId]: {
+                ...prev[itemId],
+                fotoUrls: [...itemPhotos, result.url!],
+                status: "selesai",
+              },
+            };
+          });
+        } else {
+          alert(result.error || "Gagal mengupload foto");
+        }
       }
+    } finally {
+      setUploadingItem(null);
+      // Reset input
+      e.target.value = "";
     }
-
-    setUploadingItem(null);
-    // Reset input
-    e.target.value = "";
   };
 
   const handleRemovePhoto = (itemId: string, photoIdx: number) => {
@@ -150,34 +154,49 @@ export default function OutletVisitDetailsPage() {
   };
 
   const handleSubmitItem = async (itemId: string) => {
+    if (submittingItem) return;
+
     const state = formStates[itemId];
     if (!state) return;
 
-    // Save specific item to Supabase
-    const success = await apiSaveOutletDocumentation(itemId, "", state.fotoUrls, state.status);
+    setSubmittingItem(itemId);
+    try {
+      // Save specific item to Supabase
+      const success = await apiSaveOutletDocumentation(itemId, "", state.fotoUrls, state.status);
 
-    if (success) {
-      // Show inline success message
-      setItemSuccessMsg((prev) => ({ ...prev, [itemId]: true }));
-      setTimeout(() => {
-        setItemSuccessMsg((prev) => ({ ...prev, [itemId]: false }));
-      }, 3000);
+      if (success) {
+        // Show inline success message
+        setItemSuccessMsg((prev) => ({ ...prev, [itemId]: true }));
+        setTimeout(() => {
+          setItemSuccessMsg((prev) => ({ ...prev, [itemId]: false }));
+        }, 3000);
+      }
+    } finally {
+      setSubmittingItem(null);
     }
   };
 
   const handleSave = async () => {
-    // Save each item state to Supabase
-    await Promise.all(
-      Object.entries(formStates).map(([itemId, state]) =>
-        apiSaveOutletDocumentation(itemId, "", state.fotoUrls, state.status)
-      )
-    );
+    if (saveAllLoading) return;
 
-    setSuccessMsg("Laporan tindak lanjut berhasil disimpan!");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => {
-      router.push("/outlet");
-    }, 1500);
+    setSaveAllLoading(true);
+    try {
+      // Save each item state to Supabase
+      await Promise.all(
+        Object.entries(formStates).map(([itemId, state]) =>
+          apiSaveOutletDocumentation(itemId, "", state.fotoUrls, state.status)
+        )
+      );
+
+      setSuccessMsg("Laporan tindak lanjut berhasil disimpan!");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeout(() => {
+        router.push("/outlet");
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to save outlet documentation:", err);
+      setSaveAllLoading(false);
+    }
   };
 
   return (
@@ -202,10 +221,15 @@ export default function OutletVisitDetailsPage() {
 
         <button
           onClick={handleSave}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer self-start"
+          disabled={saveAllLoading}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-semibold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-200 cursor-pointer self-start disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <IconDeviceFloppy className="w-4 h-4" />
-          Simpan Semua
+          {saveAllLoading ? (
+            <div className="w-4 h-4 border-2 border-[#022c22] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <IconDeviceFloppy className="w-4 h-4" />
+          )}
+          {saveAllLoading ? "Menyimpan..." : "Simpan Semua"}
         </button>
       </div>
 
@@ -334,13 +358,26 @@ export default function OutletVisitDetailsPage() {
 
                       {/* Add Button if less than 3 */}
                       {state.fotoUrls.length < 3 && (
-                        <label className="w-20 h-20 border border-dashed border-card-border hover:border-emerald-500/40 hover:bg-card-hover/30 rounded-xl flex flex-col items-center justify-center text-muted hover:text-emerald-450 cursor-pointer transition-all duration-200">
-                          <IconPhotoPlus className="w-5 h-5 mb-1" />
-                          <span className="text-[9px] font-semibold uppercase">Unggah</span>
+                        <label
+                          className={`w-20 h-20 border border-dashed border-card-border rounded-xl flex flex-col items-center justify-center text-muted transition-all duration-200 ${
+                            uploadingItem
+                              ? "opacity-60 cursor-not-allowed"
+                              : "hover:border-emerald-500/40 hover:bg-card-hover/30 hover:text-emerald-450 cursor-pointer"
+                          }`}
+                        >
+                          {uploadingItem === item.id ? (
+                            <div className="w-5 h-5 mb-1 border-2 border-emerald-450 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <IconPhotoPlus className="w-5 h-5 mb-1" />
+                          )}
+                          <span className="text-[9px] font-semibold uppercase">
+                            {uploadingItem === item.id ? "Proses" : "Unggah"}
+                          </span>
                           <input
                             type="file"
                             accept="image/*"
                             multiple
+                            disabled={uploadingItem !== null}
                             onChange={(e) => handleFileUpload(e, item.id)}
                             className="hidden"
                           />
@@ -373,15 +410,19 @@ export default function OutletVisitDetailsPage() {
                       <button
                         type="button"
                         onClick={() => handleSubmitItem(item.id)}
-                        disabled={state.fotoUrls.length === 0}
+                        disabled={state.fotoUrls.length === 0 || submittingItem !== null}
                         className={`w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl shadow-lg transition-all duration-200 self-end ${
-                          state.fotoUrls.length > 0
+                          state.fotoUrls.length > 0 && submittingItem === null
                             ? "bg-emerald-500 hover:bg-emerald-600 text-[#022c22] shadow-emerald-500/10 hover:shadow-emerald-500/20 cursor-pointer"
                             : "bg-muted/15 border border-card-border text-muted cursor-not-allowed"
                         }`}
                       >
-                        <IconDeviceFloppy className="w-4 h-4" />
-                        Kirim Bukti Perbaikan
+                        {submittingItem === item.id ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <IconDeviceFloppy className="w-4 h-4" />
+                        )}
+                        {submittingItem === item.id ? "Mengirim..." : "Kirim Bukti Perbaikan"}
                       </button>
                     )}
                     

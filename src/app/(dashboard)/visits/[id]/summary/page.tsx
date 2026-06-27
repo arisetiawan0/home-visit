@@ -15,7 +15,6 @@ import {
 import { motion } from "framer-motion";
 import {
   IconArrowLeft,
-  IconPrinter,
   IconPhoto,
   IconCheck,
   IconX,
@@ -117,6 +116,80 @@ export default function VisitSummaryPage() {
     }, 150);
   };
 
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+    setExporting(true);
+
+    // Force light theme for a clean PDF capture
+    const originalTheme = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "light");
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+
+      const canvas = await html2canvas(reportRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 10;
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = pageHeight - margin * 2;
+
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const scaleFactor = contentWidth / imgWidth;
+      const scaledHeight = imgHeight * scaleFactor;
+
+      if (scaledHeight <= contentHeight) {
+        pdf.addImage(imgData, "PNG", margin, margin, contentWidth, scaledHeight);
+      } else {
+        const pxPerMm = imgWidth / contentWidth;
+        const chunkHeightPx = Math.floor(contentHeight * pxPerMm);
+        let y = 0;
+        let firstPage = true;
+        while (y < imgHeight) {
+          if (!firstPage) pdf.addPage();
+          const remaining = imgHeight - y;
+          const sliceHeightPx = Math.min(chunkHeightPx, remaining);
+          const sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = imgWidth;
+          sliceCanvas.height = sliceHeightPx;
+          const ctx = sliceCanvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+            ctx.drawImage(canvas, 0, y, imgWidth, sliceHeightPx, 0, 0, imgWidth, sliceHeightPx);
+          }
+          const sliceData = sliceCanvas.toDataURL("image/png");
+          const sliceHeightMm = sliceHeightPx / pxPerMm;
+          pdf.addImage(sliceData, "PNG", margin, margin, contentWidth, sliceHeightMm);
+          y += chunkHeightPx;
+          firstPage = false;
+        }
+      }
+
+      pdf.save(`HV-Summary-${visit.outlet_name}-${visit.visit_date}.pdf`);
+    } catch (err) {
+      console.error("Gagal ekspor PDF:", err);
+      alert("Gagal mengekspor PDF");
+    } finally {
+      if (originalTheme) {
+        document.documentElement.setAttribute("data-theme", originalTheme);
+      }
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. TOP HEADER NAVIGATION (Hidden on Print) */}
@@ -140,11 +213,12 @@ export default function VisitSummaryPage() {
         {/* Action buttons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={handlePrint}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-card hover:bg-card-hover text-secondary hover:text-foreground font-semibold text-xs border border-card-border rounded-xl transition-all duration-200 cursor-pointer"
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-card hover:bg-card-hover text-secondary hover:text-foreground font-semibold text-xs border border-card-border rounded-xl transition-all duration-200 cursor-pointer disabled:opacity-50"
           >
-            <IconPrinter className="w-4 h-4" />
-            Cetak / Ekspor PDF
+            <IconFileText className="w-4 h-4" />
+            {exporting ? "Mengekspor..." : "Unduh PDF"}
           </button>
           <button
             onClick={handleExportPNG}
@@ -208,21 +282,21 @@ export default function VisitSummaryPage() {
       {/* 3. PRINTABLE REPORT TEMPLATE */}
       <div
         ref={reportRef}
-        className="bg-card border border-card-border rounded-2xl p-8 md:p-12 shadow-xl print-card print:border-none print:shadow-none"
+        className="bg-card border border-card-border rounded-2xl p-8 md:p-12 shadow-xl print-card print:border-none print:shadow-none print:p-6 print:w-full print:max-w-none"
       >
-        <div className="space-y-8 max-w-4xl mx-auto">
+        <div className="space-y-8 max-w-4xl mx-auto print:max-w-none print:w-full">
           {/* A. Kop Surat Official */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b-2 border-card-border pb-6 print:border-slate-350">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 border-b-2 border-card-border pb-6 print:border-slate-350 print:flex-row print:items-start">
             <div className="space-y-1.5">
-              <h2 className="text-2xl font-extrabold tracking-tight text-foreground print-title">
+              <h2 className="text-2xl font-extrabold tracking-tight text-foreground print-title print:text-xl">
                 BEAUTY KENDARI
               </h2>
               <p className="text-muted text-xs uppercase tracking-wider font-bold print-title">
                 Laporan Ringkasan Kunjungan (Home Visit)
               </p>
             </div>
-            <div className="text-muted text-xs sm:text-right font-mono space-y-1 print-title">
-              <div>No Dok: <span className="font-semibold text-secondary">HV/{visit.visit_date.replace(/-/g, "/")}/{visit.id.substring(6, 11).toUpperCase()}</span></div>
+            <div className="text-muted text-xs sm:text-right font-mono space-y-1 print-title print:whitespace-nowrap">
+              <div>No Dok: <span className="font-semibold text-secondary">HV/{visit.visit_date.split("T")[0].replace(/-/g, "/")}/{visit.id.slice(-4).toUpperCase()}</span></div>
               <div>Tanggal Kunjungan: <span className="font-semibold text-secondary">{new Date(visit.visit_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span></div>
             </div>
           </div>
@@ -242,7 +316,7 @@ export default function VisitSummaryPage() {
             <div className="space-y-2 text-xs sm:pl-8">
               <div className="flex">
                 <span className="w-24 text-muted font-semibold uppercase tracking-wider">Petugas SPV:</span>
-                <span className="font-mono text-secondary font-semibold print-title">{visit.spv_code}</span>
+                <span className="text-secondary font-semibold print-title">{currentUser?.label || visit.spv_code}</span>
               </div>
               <div className="flex">
                 <span className="w-24 text-muted font-semibold uppercase tracking-wider">Status Form:</span>
@@ -264,32 +338,32 @@ export default function VisitSummaryPage() {
                 <p>Tidak ditemukan ketidaksesuaian pada butir checklist di outlet ini.</p>
               </div>
             ) : (
-              <div className="border border-card-border rounded-xl overflow-hidden print:border-slate-350">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-card-darker/60 text-muted uppercase tracking-wider font-mono border-b border-card-border print:bg-slate-100 print:text-black print:border-slate-350">
-                      <th className="px-4 py-3 font-semibold w-12 text-center">No</th>
-                      <th className="px-4 py-3 font-semibold w-32">Perspektif</th>
-                      <th className="px-4 py-3 font-semibold w-[22%]">Deskripsi Butir</th>
-                      <th className="px-4 py-3 font-semibold w-[32%]">Rencana Perbaikan (SPV)</th>
-                      <th className="px-4 py-3 font-semibold w-[15%]">Deadline</th>
-                      <th className="px-4 py-3 font-semibold w-[15%]">PIC</th>
-                      <th className="px-4 py-3 font-semibold w-24 text-center">Status Perbaikan</th>
+              <div className="border border-card-border rounded-xl overflow-hidden print:border-slate-350 print:rounded-none print:overflow-visible">
+                <table className="w-full text-left text-xs border-collapse print:table-fixed">
+                  <thead className="print:table-header-group">
+                    <tr className="bg-card-darker/60 text-muted uppercase tracking-wider font-mono border-b border-card-border print:bg-slate-100 print:text-black print:border-slate-350 print:text-[9px]">
+                      <th className="px-2 py-2 font-semibold w-12 text-center print:w-[4%]">No</th>
+                      <th className="px-2 py-2 font-semibold w-32 print:w-[15%]">Perspektif</th>
+                      <th className="px-2 py-2 font-semibold w-[22%] print:w-[19%]">Deskripsi Butir</th>
+                      <th className="px-2 py-2 font-semibold w-[32%] print:w-[25%]">Rencana Perbaikan (SPV)</th>
+                      <th className="px-2 py-2 font-semibold w-[15%] print:w-[12%]">Deadline</th>
+                      <th className="px-2 py-2 font-semibold w-[15%] print:w-[12%]">PIC</th>
+                      <th className="px-2 py-2 font-semibold w-24 text-center print:w-[13%]">Status Perbaikan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-card-border text-secondary print:divide-slate-350 print:text-black">
+                  <tbody className="divide-y divide-card-border text-secondary print:divide-slate-350 print:text-black print:text-[9px]">
                     {findings.map((item, idx) => {
                       const doc = outletDocumentations.find((d) => d.checklist_item_id === item.id);
                       return (
-                        <tr key={item.id} className="align-top hover:bg-card-hover/10">
-                          <td className="px-4 py-3 font-mono text-center">{idx + 1}</td>
-                          <td className="px-4 py-3 font-semibold text-muted print-title">
+                        <tr key={item.id} className="align-top hover:bg-card-hover/10 print:break-inside-avoid">
+                          <td className="px-4 py-3 font-mono text-center print:px-1 print:py-2 print:break-words">{idx + 1}</td>
+                          <td className="px-4 py-3 font-semibold text-muted print-title print:px-1 print:py-2 print:break-words">
                             P{item.perspective_no} - {item.perspective_name.replace("Standar Pelayanan ", "").replace("Standar ", "")}
                           </td>
-                          <td className="px-4 py-3 leading-relaxed">
+                          <td className="px-4 py-3 leading-relaxed print:px-1 print:py-2 print:break-words">
                             {item.point_description}
                           </td>
-                          <td className="px-4 py-3 italic text-secondary print-title leading-relaxed">
+                          <td className="px-4 py-3 italic text-secondary print-title leading-relaxed print:px-1 print:py-2 print:break-words">
                             {isEditMode ? (
                               <>
                                 <textarea
@@ -309,7 +383,7 @@ export default function VisitSummaryPage() {
                               <span>{item.rencana_perbaikan || "-"}</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 font-mono">
+                          <td className="px-4 py-3 font-mono print:px-1 print:py-2 print:break-words">
                             {isEditMode ? (
                               <>
                                 <input
@@ -332,7 +406,7 @@ export default function VisitSummaryPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 font-semibold">
+                          <td className="px-4 py-3 font-semibold print:px-1 print:py-2 print:break-words">
                             {isEditMode ? (
                               <>
                                 <input
@@ -352,7 +426,7 @@ export default function VisitSummaryPage() {
                               <span>{item.support_divisi || "-"}</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-3 text-center print:px-1 print:py-2 print:break-words">
                             <span
                               className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase print:bg-transparent print:border print:text-black ${
                                 doc?.status === "selesai"
@@ -375,14 +449,14 @@ export default function VisitSummaryPage() {
           </div>
 
           {/* D. Signature Blocks */}
-          <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs">
+          <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs print:break-inside-avoid">
             <div className="space-y-16">
               <p className="text-muted uppercase tracking-wider font-semibold">Dibuat Oleh,</p>
               <div className="space-y-1">
                 <p className="font-mono font-semibold text-secondary border-b border-dashed border-card-border pb-1.5 w-48 mx-auto print-title">
-                  {visit.spv_code}
+                  {currentUser?.label || visit.spv_code}
                 </p>
-                <p className="text-muted">Supervisor Lapangan</p>
+                <p className="text-muted">Supervisor Area</p>
               </div>
             </div>
             
@@ -390,9 +464,9 @@ export default function VisitSummaryPage() {
               <p className="text-muted uppercase tracking-wider font-semibold">Disetujui Oleh,</p>
               <div className="space-y-1">
                 <p className="font-semibold text-secondary border-b border-dashed border-card-border pb-1.5 w-48 mx-auto print-title">
-                  Kepala Toko {visit.outlet_name}
+                  {currentUser?.role === "outlet" ? currentUser.label : visit.outlet_name}
                 </p>
-                <p className="text-muted">Store Manager</p>
+                <p className="text-muted">Store Coordinator</p>
               </div>
             </div>
           </div>
