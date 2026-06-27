@@ -94,9 +94,11 @@ export default function SpvDashboardPage() {
   }
 
   // --- STATS COMPUTATION ---
+  // Target bulanan: minimal 10 kunjungan/bulan (bisa lebih; 1 outlet boleh dikunjungi >1x).
+  const MONTHLY_TARGET = 10;
   const totalVisits = visits.length;
-  const targetVisits = areaStats?.outletCount ?? currentUser?.outlets?.length ?? 0;
-  const visitCoverage = targetVisits > 0 ? Math.round((totalVisits / targetVisits) * 100) : 0;
+  const managedOutletCount = areaStats?.outletCount ?? currentUser?.outlets?.length ?? 0;
+  const visitCoverage = Math.round((totalVisits / MONTHLY_TARGET) * 100);
   
   // Total checklist items marked as X (temuan) across completed visits
   const completedVisitIds = visits.filter(v => v.status === "completed").map(v => v.id);
@@ -238,13 +240,13 @@ export default function SpvDashboardPage() {
                 {currentUser.areaName || currentUser.label}
               </h1>
               <p className="text-sm text-muted mt-1">
-                NIK {currentUser.nik} mengelola {targetVisits} outlet dalam area ini.
+                NIK {currentUser.nik} mengelola {managedOutletCount} outlet dalam area ini.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 min-w-64">
               <div className="rounded-xl border border-card-border bg-card-darker/40 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Target Bulanan</p>
-                <p className="text-3xl font-extrabold text-foreground mt-2">{targetVisits}</p>
+                <p className="text-3xl font-extrabold text-foreground mt-2">{MONTHLY_TARGET}+</p>
               </div>
               <div className="rounded-xl border border-card-border bg-card-darker/40 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Cakupan</p>
@@ -299,8 +301,8 @@ export default function SpvDashboardPage() {
                 },
                 {
                   title: "Target Kunjungan",
-                  value: targetVisits,
-                  desc: "Target outlet per bulan",
+                  value: `${MONTHLY_TARGET}+`,
+                  desc: "Min. 10 kunjungan/bulan",
                   icon: IconTargetArrow,
                   color: "text-violet-400 bg-violet-500/5 border-violet-500/10",
                 },
