@@ -165,6 +165,12 @@ export default function OutletVisitDetailsPage() {
       const success = await apiSaveOutletDocumentation(itemId, "", state.fotoUrls, state.status);
 
       if (success) {
+        // Refresh docs so UI (isSubmitted, status) reflects saved state immediately
+        if (visit) {
+          const refreshedDocs = await apiGetOutletDocumentations(visit.id);
+          setOutletDocumentations(refreshedDocs);
+        }
+
         // Show inline success message
         setItemSuccessMsg((prev) => ({ ...prev, [itemId]: true }));
         setTimeout(() => {
