@@ -239,22 +239,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Info kode login */}
-        <div className="mt-6 text-center text-xs text-muted bg-card/40 border border-card-border rounded-xl p-3">
-          <span className="font-semibold text-muted">Info Login SPV:</span>
-          <br />
-          <span className="text-secondary">Gunakan NIK untuk login:</span>
-          <br />
-          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Toni Irawan (20120100051)</code>
-          <br />
-          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Zulkifli (2022070361)</code>
-          <br />
-          <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">Choirul Amin Nurfauzi (2021120331)</code>
-          <br className="mt-2" />
-          <span className="text-muted">Atau gunakan kode: SPV001 / SPV002 / SPV003</span>
-          {" | "}
-          Outlet: Pilih nomor, misal <code className="text-secondary bg-card-darker px-1 py-0.5 rounded">05</code>
-        </div>
       </motion.div>
     </main>
   );
