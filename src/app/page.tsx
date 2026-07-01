@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore, apiLogin } from "@/lib/mockStore";
 import { motion } from "framer-motion";
-import { IconBuildingStore, IconUserShield, IconChevronRight, IconAlertCircle, IconSun, IconMoon } from "@tabler/icons-react";
+import { IconBuildingStore, IconUserShield, IconChevronRight, IconAlertCircle, IconSun, IconMoon, IconEye, IconEyeOff } from "@tabler/icons-react";
 import CustomSelect from "@/components/CustomSelect";
 
 export default function LoginPage() {
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [selectedOutlet, setSelectedOutlet] = useState("01");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const outletOptions = Array.from({ length: 27 }, (_, i) => {
     const num = String(i + 1).padStart(2, "0");
@@ -49,6 +50,7 @@ export default function LoginPage() {
       setCode("");
     }
     setError("");
+    setShowPassword(false);
   }, [role, selectedOutlet]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,15 +182,29 @@ export default function LoginPage() {
                 >
                   Masukkan NIK / Kode SPV
                 </label>
-                <input
-                  id="spvCode"
-                  type="password"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Masukkan NIK (contoh: 20120100051)"
-                  className="w-full bg-card-darker border border-card-border focus:border-emerald-500 rounded-xl px-4 py-3 text-secondary text-sm placeholder-muted focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all duration-200"
-                  autoComplete="off"
-                />
+                <div className="relative">
+                  <input
+                    id="spvCode"
+                    type={showPassword ? "text" : "password"}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="Masukkan NIK (contoh: 20120100051)"
+                    className="w-full bg-card-darker border border-card-border focus:border-emerald-500 rounded-xl pl-4 pr-11 py-3 text-secondary text-sm placeholder-muted focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all duration-200"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground focus:outline-none transition-colors duration-200 cursor-pointer flex items-center justify-center rounded-lg"
+                    title={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                  >
+                    {showPassword ? (
+                      <IconEyeOff className="w-5 h-5" />
+                    ) : (
+                      <IconEye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </motion.div>
             ) : (
               <motion.div

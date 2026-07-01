@@ -15,7 +15,7 @@
 - B25
 - B24
 
-## Area 2 — Zulkifli (2022070361)
+## Area 2 — Zulkifli (2022070364)
 - B1
 - B3
 - B9
